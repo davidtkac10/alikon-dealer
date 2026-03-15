@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alikon · Dealer Systém</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#CC0000;--red-dark:#990000;
+  --black:#0A0A0A;--dark:#111;--panel:#181818;
+  --card:#1E1E1E;--border:#2A2A2A;--border2:#383838;
+  --text:#F0F0F0;--muted:#777;--muted2:#444;
+  --accent:#FFB800;--green:#00BB44;
+}
+html,body{min-height:100vh;background:var(--black);color:var(--text);font-family:'Barlow',sans-serif;font-size:14px}
+
+/* TOPBAR */
+.topbar{background:#0A0A0A;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:2px solid #C9A84C;position:sticky;top:0;z-index:50}
+.logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:4px;color:#C9A84C}
+.logo span{color:#fff}
+.topbar-sub{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:#666;text-transform:uppercase}
+
+/* MAIN */
+.main{max-width:860px;margin:0 auto;padding:28px 16px 60px}
+
+/* URL INPUT BOX */
+.url-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:24px}
+.url-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.url-title::before{content:'';width:4px;height:16px;background:var(--red);border-radius:2px}
+.url-row{display:flex;gap:10px}
+.url-input{flex:1;background:var(--dark);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:11px 14px;font-family:'Barlow',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s}
+.url-input:focus{border-color:var(--red)}
+.url-input::placeholder{color:var(--muted2)}
+.btn-load{background:var(--red);border:none;color:#fff;padding:11px 26px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;cursor:pointer;border-radius:6px;text-transform:uppercase;transition:background 0.15s;white-space:nowrap;display:flex;align-items:center;gap:8px;min-width:130px;justify-content:center}
+.btn-load:hover{background:var(--red-dark)}
+.btn-load:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.url-hint{font-size:11px;color:var(--muted2);margin-top:8px}
+.url-hint a{color:var(--muted);text-decoration:none}
+.url-hint a:hover{color:var(--text)}
+.err-msg{background:rgba(204,0,0,0.1);border:1px solid rgba(204,0,0,0.25);border-radius:5px;padding:10px 12px;font-size:12px;color:#ff6666;margin-top:10px;display:none}
+.err-msg.show{display:block}
+
+/* CAR CARD */
+.car-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:none;animation:fadeIn 0.35s ease}
+.car-card.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.car-img-wrap{width:100%;height:300px;background:var(--card);position:relative;overflow:hidden;cursor:pointer}
+.car-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform 0.3s}
+.car-img-wrap:hover img{transform:scale(1.02)}
+.car-img-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.55);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;z-index:5}
+.car-img-nav:hover{background:rgba(204,0,0,0.8)}
+.img-prev{left:12px}
+.img-next{right:12px}
+.img-counter{position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;font-family:'Barlow Condensed',sans-serif;padding:3px 8px;border-radius:10px}
+.car-badge{position:absolute;top:12px;left:12px;background:var(--red);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;text-transform:uppercase;z-index:5}
+.car-img-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted2)}
+.car-img-loading{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+
+/* INFO SECTION */
+.car-info-section{padding:20px 22px;border-bottom:1px solid var(--border)}
+.car-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;line-height:1.05;letter-spacing:0.3px}
+.car-name span{color:var(--red)}
+.car-subtitle{font-size:13px;color:var(--muted);margin-top:5px}
+.car-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:5px 10px;font-size:12px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px}
+.chip strong{color:var(--text);font-weight:600}
+
+/* DETAILS GRID */
+.details-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)}
+@media(max-width:600px){.details-grid{grid-template-columns:repeat(2,1fr)}}
+.detail-cell{padding:13px 18px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.detail-cell:nth-child(4n){border-right:none}
+@media(max-width:600px){.detail-cell:nth-child(2n){border-right:none}}
+.detail-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;margin-bottom:3px}
+.detail-value{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px}
+
+/* PRICE ROW */
+.price-row{padding:16px 22px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.price-label-wrap{}
+.price-label{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
+.price-note{font-size:11px;color:var(--muted2);margin-top:2px}
+.price-value{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--accent)}
+
+/* PACKAGES */
+.pkg-section{padding:18px 22px;border-bottom:1px solid var(--border)}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::before{content:'';width:3px;height:14px;background:var(--red);border-radius:2px}
+.pkg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start}
+@media(max-width:600px){.pkg-grid{grid-template-columns:1fr}}
+.pkg-card{background:var(--card);border:1.5px solid var(--border2);border-radius:8px;padding:14px;cursor:pointer;transition:all 0.15s;position:relative;user-select:none}
+.pkg-card:hover{border-color:var(--red)}
+.pkg-card.on{border-color:var(--red);background:rgba(204,0,0,0.06)}
+/* HIGHLIGHT — Deluxe stred */
+.pkg-highlight{border:2px solid #C9A84C !important;background:rgba(201,168,76,0.05) !important;transform:translateY(-4px);box-shadow:0 8px 32px rgba(201,168,76,0.15)}
+.pkg-highlight:hover{border-color:#C9A84C !important}
+.pkg-highlight.on{background:rgba(201,168,76,0.1) !important}
+.pkg-best-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#C9A84C;color:#000;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:3px 14px;border-radius:20px;white-space:nowrap;text-transform:uppercase}
+.pkg-tag{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:4px;font-weight:700}
+.pkg-tag-hl{color:#C9A84C}
+.pkg-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;line-height:1.2;margin-bottom:8px;padding-right:22px}
+.pkg-items{list-style:none;padding:0;margin:0 0 10px;display:flex;flex-direction:column;gap:3px}
+.pkg-items li{font-size:11px;color:var(--muted);padding-left:12px;position:relative;line-height:1.4}
+.pkg-items li::before{content:'✓';position:absolute;left:0;color:var(--red);font-size:10px;font-weight:700}
+.pkg-highlight .pkg-items li::before{color:#C9A84C}
+.pkg-note{font-size:11px;color:#C9A84C;font-weight:600;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px}
+.pkg-price{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:var(--accent);border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+.pkg-highlight .pkg-price{color:#C9A84C}
+.pkg-check{position:absolute;top:11px;right:11px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.pkg-card.on .pkg-check{background:var(--red);border-color:var(--red)}
+.pkg-highlight.on .pkg-check{background:#C9A84C;border-color:#C9A84C}
+.pkg-check-inner{width:7px;height:7px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg) translate(-1px,-2px);opacity:0}
+.pkg-card.on .pkg-check-inner{opacity:1}
+
+/* SLEVA */
+.sleva-section{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px}
+.sleva-label{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;min-width:60px}
+.sleva-row{display:flex;align-items:center;gap:8px}
+.sleva-input{background:var(--dark);border:1px solid var(--border2);border-radius:6px;color:var(--accent);padding:8px 12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;outline:none;width:160px;transition:border-color 0.15s}
+.sleva-input:focus{border-color:var(--red)}
+.sleva-unit{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--muted)}
+.total-section{padding:18px 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.breakdown{display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px}
+.b-row{display:flex;justify-content:space-between;gap:32px;font-size:13px}
+.b-key{color:var(--muted)}
+.b-val{font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.b-div{height:1px;background:var(--border);margin:4px 0}
+.total-box{background:var(--red);border-radius:8px;padding:16px 22px;text-align:right;min-width:190px}
+.total-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.65);text-transform:uppercase;margin-bottom:4px}
+.total-amt{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:40px;color:#fff;line-height:1}
+.total-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-top:4px}
+
+/* ACTIONS */
+.actions{width:100%;display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.btn-pres{background:var(--red);border:none;color:#fff;padding:12px 28px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:1.5px;cursor:pointer;border-radius:6px;text-transform:uppercase;transition:all 0.15s}
+.btn-pres:hover{background:var(--red-dark);transform:translateY(-1px)}
+.btn-sec{background:transparent;border:1px solid var(--border2);color:var(--muted);padding:12px 20px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;letter-spacing:1px;cursor:pointer;border-radius:6px;text-transform:uppercase;transition:all 0.15s}
+.btn-sec:hover{border-color:var(--red);color:var(--text)}
+
+/* FULLSCREEN PRESENTATION */
+#pres{position:fixed;inset:0;background:#060606;z-index:200;display:none;flex-direction:column;overflow-y:auto}
+#pres.open{display:flex}
+.pres-bar{background:#0A0A0A;padding:12px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid #C9A84C}
+.pres-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:4px;color:#C9A84C}
+.pres-logo span{color:#fff}
+.pres-x{background:rgba(0,0,0,0.3);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pres-x:hover{background:rgba(0,0,0,0.6)}
+.pres-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 28px;gap:20px;max-width:780px;margin:0 auto;width:100%}
+.pres-img{width:100%;max-height:380px;object-fit:cover;border-radius:10px;border:2px solid #1a1a1a}
+.pres-img-ph{width:100%;height:200px;background:#111;border-radius:10px;border:2px solid #1a1a1a;display:flex;align-items:center;justify-content:center;color:#333;font-size:48px}
+.pres-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:54px;text-align:center;line-height:1;letter-spacing:1px}
+.pres-name span{color:var(--red)}
+.pres-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.pres-chip{background:#111;border:1px solid #222;border-radius:6px;padding:7px 14px;font-family:'Barlow Condensed',sans-serif;font-size:14px;color:#888}
+.pres-chip strong{color:#ddd;font-weight:700}
+.pres-base{font-size:15px;color:#555;text-align:center}
+.pres-pkgs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.pres-pkg{background:#111;border:1px solid #222;border-radius:8px;padding:12px 18px;text-align:center}
+.pres-pkg-name{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;margin-bottom:3px;color:#aaa}
+.pres-pkg-price{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--accent)}
+.pres-total-box{background:var(--red);border-radius:10px;padding:22px 40px;text-align:center;width:100%}
+.pres-total-lbl{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:rgba(255,255,255,0.65);text-transform:uppercase;margin-bottom:5px}
+.pres-total-amt{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:70px;color:#fff;line-height:1}
+.pres-total-note{font-size:12px;color:rgba(255,255,255,0.5);margin-top:5px}
+.pres-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.pres-info-cell{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:10px;text-align:center}
+.pres-info-lbl{font-size:10px;color:#444;letter-spacing:1px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;margin-bottom:3px}
+.pres-info-val{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:#aaa}
+.pres-footer{font-size:11px;color:#333;text-align:center;padding-bottom:10px}
+
+/* AI STATUS */
+.ai-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:10px 0 0}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="logo">PROJEKT<span> ALIKON</span></div>
+  </div>
+  <div class="topbar-sub">Dealer Prezentační Systém</div>
+</div>
+
+<div class="main">
+
+  <!-- URL INPUT -->
+  <div class="url-box">
+    <div class="url-title">Vložte odkaz na auto z autoesa.cz</div>
+    <div class="url-row">
+      <input class="url-input" id="urlInput"
+        placeholder="https://www.autoesa.cz/auto/skoda-octavia-..."
+        onkeydown="if(event.key==='Enter')loadCar()">
+      <button class="btn-load" id="loadBtn" onclick="loadCar()">
+        <span id="btnSpinner" class="spinner" style="display:none"></span>
+        <span id="btnText">Načíst</span>
+      </button>
+    </div>
+    <div class="url-hint">
+      Otevřete libovolné auto na <a href="https://www.autoesa.cz/vsechna-auta" target="_blank">autoesa.cz</a>, zkopírujte URL z adresního řádku a vložte sem.
+    </div>
+    <div id="serverBanner" style="display:none"></div>
+    <div class="err-msg" id="errMsg"></div>
+    <div class="ai-status" id="aiStatus" style="display:none">
+      <div class="ai-dot"></div>
+      <span id="aiStatusText">Načítám data z Auto ESA...</span>
+    </div>
+  </div>
+
+  <!-- CAR CARD -->
+  <div class="car-card" id="carCard">
+
+    <!-- Image gallery -->
+    <div class="car-img-wrap" id="imgWrap">
+      <div class="car-img-placeholder car-img-loading" id="imgInner">
+        <div class="spinner" style="border-color:rgba(255,255,255,0.1);border-top-color:#CC0000"></div>
+        <span>Načítám fotografii...</span>
+      </div>
+      <button class="car-img-nav img-prev" id="imgPrev" onclick="prevImg()" style="display:none">‹</button>
+      <button class="car-img-nav img-next" id="imgNext" onclick="nextImg()" style="display:none">›</button>
+      <div class="img-counter" id="imgCounter" style="display:none"></div>
+      <div class="car-badge" id="carBadge">Auto ESA</div>
+    </div>
+
+    <!-- Car name & meta -->
+    <div class="car-info-section">
+      <div class="car-name" id="carName">–</div>
+      <div class="car-subtitle" id="carSubtitle"></div>
+      <div class="car-meta" id="carMeta"></div>
+    </div>
+
+    <!-- Details grid -->
+    <div class="details-grid" id="detailsGrid"></div>
+
+    <!-- Base price -->
+    <div class="price-row">
+      <div class="price-label-wrap">
+        <div class="price-label">Základní cena vozidla</div>
+        <div class="price-note">Platba v hotovosti · bez pojištění</div>
+      </div>
+      <div class="price-value" id="priceBase">–</div>
+    </div>
+
+    <!-- Packages -->
+    <div class="pkg-section">
+      <div class="section-title">Vyberte balíček</div>
+      <div class="pkg-grid" id="pkgGrid"></div>
+    </div>
+
+    <!-- Sleva -->
+    <div class="sleva-section">
+      <div class="sleva-label">Sleva</div>
+      <div class="sleva-row">
+        <input class="sleva-input" id="slevaInput" type="number" min="0" placeholder="0" oninput="updateTotal()">
+        <span class="sleva-unit">Kč</span>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-section">
+      <div class="breakdown" id="breakdown"></div>
+      <div class="total-box">
+        <div class="total-lbl">Celková cena</div>
+        <div class="total-amt" id="totalAmt">–</div>
+        <div class="total-sub">hotovost · bez pojištění</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn-sec" onclick="resetAll()">← Nové auto</button>
+      <button class="btn-pres" onclick="openPres()">▶ Prezentovat zákazníkovi</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- FULLSCREEN PRESENTATION -->
+<div id="pres">
+  <div class="pres-bar">
+    <div class="pres-logo">PROJEKT<span> ALIKON</span></div>
+    <button class="pres-x" onclick="closePres()">✕</button>
+  </div>
+  <div class="pres-body" id="presBody"></div>
+</div>
+
+<script>
+// ─── PACKAGES — poradie: Basic (vľavo), Deluxe (stred/highlighted), Premium (vpravo)
+const PACKAGES = [
+  {
+    id: 0,
+    tag: 'BASIC',
+    name: 'Záruční program 12 měs.',
+    items: ['Záruka na mechanické díly','Pojištění STK','Výměna 55 dnů','Registrace vozidla','Asistenční služby','Brašna povinné výbavy'],
+    note: '',
+    price: 17500,
+    highlight: false,
+  },
+  {
+    id: 1,
+    tag: 'DELUXE',
+    name: 'Záruční program 36 měs.',
+    items: ['Záruka na mechanické díly','Pojištění STK','Výměna 55 dnů','Registrace vozidla','Asistenční služby','Brašna povinné výbavy','Minigap'],
+    note: 'Vše na 36 měsíců / 955 Kč měsíčně',
+    price: 35000,
+    highlight: true,  // ← stred, najvýraznejší
+  },
+  {
+    id: 2,
+    tag: 'PREMIUM',
+    name: 'Záruční program 24 měs.',
+    items: ['Záruka na mechanické díly','Pojištění STK','Výměna 55 dnů','Registrace vozidla','Asistenční služby','Brašna povinné výbavy'],
+    note: '',
+    price: 23500,
+    highlight: false,
+  },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let car = null;
+let images = [];
+let imgIdx = 0;
+let selected = null; // index vybraného balíčku, null = žiadny
+
+// ─── FORMAT ──────────────────────────────────────────────────────────────────
+function czk(n) {
+  if (!n && n!==0) return '–';
+  return new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0}).format(n);
+}
+
+// ─── LOAD CAR ────────────────────────────────────────────────────────────────
+async function loadCar() {
+  const url = document.getElementById('urlInput').value.trim();
+  const err = document.getElementById('errMsg');
+  err.classList.remove('show');
+
+  if (!url) { showErr('Vložte URL auta z autoesa.cz.'); return; }
+  if (!url.includes('autoesa.cz')) { showErr('URL musí být z webu autoesa.cz'); return; }
+
+  setLoading(true);
+  showAIStatus('Stahuji stránku auta...');
+
+  try {
+    const html = await fetchPageHTML(url);
+    showAIStatus('Analyzuji data...');
+    const carData = parseAutoESA(html, url);
+    if (!carData) { showErr('Autoesa.cz vrátilo přihlašovací stránku. Zkuste načíst znovu — server se automaticky obnoví.'); setLoading(false); hideAIStatus(); return; }
+    car = carData;
+    selected = null;
+    images = car.images || [];
+    imgIdx = 0;
+    renderCar();
+    setLoading(false);
+    hideAIStatus();
+  } catch(e) {
+    let msg = e.message;
+    if (msg.includes('fetch') || msg.includes('Failed') || msg.includes('NetworkError') || msg.includes('refused')) {
+      msg = 'Server neběží! Spusťte nejprve: node server.js';
+    }
+    showErr('Chyba: ' + msg);
+    setLoading(false);
+    hideAIStatus();
+  }
+}
+
+// ─── FETCH HTML cez lokálny server ───────────────────────────────────────────
+async function fetchPageHTML(targetUrl) {
+  showAIStatus('Stahuji stránku auta...');
+  const baseUrl = location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+  const resp = await fetch(baseUrl + '/scrape?url=' + encodeURIComponent(targetUrl), {
+    signal: AbortSignal.timeout(60000) // 60s — server skusa 5x po 2s
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || 'HTTP ' + resp.status);
+  }
+  const html = await resp.text();
+  if (!html || html.length < 500) throw new Error('Stránka je prázdná');
+  return html;
+}
+
+// ─── PARSE autoesa.cz HTML ────────────────────────────────────────────────────
+function parseAutoESA(html, sourceUrl) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const allText = doc.body ? doc.body.textContent : '';
+
+  // Detekcia skutocnej login stranky
+  if (html.includes('Zapomenuté heslo') ||
+     (html.includes('type="password"') && !html.includes('Cena v hotovosti'))) {
+    return null;
+  }
+
+  // ── Název – primárne z <title>, fallback h1 ──────────────────────────────
+  let name = '';
+
+  // 1. <title> je najspoľahlivejší: "Škoda Rapid 1.2 TSi Sport | Autobazar Auto ESA"
+  const titleEl = doc.querySelector('title');
+  if (titleEl) {
+    const titleText = titleEl.textContent.trim();
+    // Orezáme "| Autobazar Auto ESA" a podobné sufixy
+    name = titleText.split('|')[0].trim();
+    // Odfiltruj ak to nie je názov auta (napr. login stránka)
+    const badTitles = ['přihlásit', 'prihlásit', 'login', 'autobazar auto esa', 'vsechna-auta'];
+    if (badTitles.some(b => name.toLowerCase().includes(b))) name = '';
+  }
+
+  // 2. Fallback: druhé h1 (dlhšie = model, napr. "Škoda Rapid 1.2 TSi Ambition")
+  if (!name) {
+    const h1s = doc.querySelectorAll('h1');
+    h1s.forEach(h => {
+      const t = h.textContent.trim();
+      if (t.length > name.length && t.length < 80) name = t;
+    });
+  }
+
+  // 3. Posledný fallback: z URL
+  if (!name) name = extractFromUrl(sourceUrl);
+
+  // ── CENA V HOTOVOSTI ──────────────────────────────────────────────────────
+  // Hľadáme vzor: "Cena v hotovosti" → nasledujúce číslo s Kč
+  // Ignorujeme "bez DPH" ceny ktoré sú menšie
+  let price = 0;
+
+  // Metóda 1: regex priamo v texte – "Cena v hotovosti\n\nXXX XXX Kč"
+  const hotovostM = allText.match(/Cena v hotovosti\s*\**\s*([\d\s]+)\s*Kč/i);
+  if (hotovostM) {
+    price = parseInt(hotovostM[1].replace(/\s/g, ''));
+  }
+
+  // Metóda 2: hľadaj v raw HTML – "Cena v hotovosti" a potom číslo
+  if (!price) {
+    const hotovostHTML = html.match(/Cena v hotovosti[\s\S]{0,200}?(\d[\d\s]{4,8})\s*Kč/i);
+    if (hotovostHTML) {
+      // Vezmeme PRVÉ číslo za "Cena v hotovosti" (nie bez DPH)
+      const candidates = [];
+      const re = /(\d[\d\s]{3,7})\s*Kč/g;
+      const chunk = html.slice(html.search(/Cena v hotovosti/i), html.search(/Cena v hotovosti/i) + 300);
+      let m;
+      while ((m = re.exec(chunk)) !== null) {
+        const val = parseInt(m[1].replace(/\s/g,''));
+        if (val > 50000) candidates.push(val);
+      }
+      // Najväčšia hodnota = cena s DPH (nie bez DPH)
+      if (candidates.length) price = Math.max(...candidates);
+    }
+  }
+
+  // Metóda 3: fallback – prvá veľká cena v texte
+  if (!price) {
+    const allPrices = [];
+    const re = /(\d[\d\s]{4,8})\s*Kč/g;
+    let m;
+    while ((m = re.exec(allText)) !== null) {
+      const val = parseInt(m[1].replace(/\s/g,''));
+      if (val > 50000 && val < 5000000) allPrices.push(val);
+    }
+    if (allPrices.length) price = Math.max(...allPrices);
+  }
+
+  // ── FOTKY ────────────────────────────────────────────────────────────────
+  // autoesa.cz používa vzor: /files/cars/ČÍSLO_AUTA/950_713_e/ČÍSLO_AUTA-N.jpg
+  const carId = (sourceUrl.match(/\/(\d{8,12})/) || [])[1] || '';
+  const imgs = [];
+
+  if (carId) {
+    // Vygeneruj URL pre fotky 1–20 (server vráti 404 ak neexistujú)
+    for (let i = 1; i <= 20; i++) {
+      imgs.push(`https://www.autoesa.cz/files/cars/${carId}/950_713_e/${carId}-${i}.jpg?1`);
+    }
+  } else {
+    // Fallback – hľadaj v HTML
+    doc.querySelectorAll('a[href*="/files/cars/"]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && href.match(/\.jpg/i)) {
+        const full = href.startsWith('http') ? href : 'https://www.autoesa.cz' + href;
+        if (!imgs.includes(full)) imgs.push(full);
+      }
+    });
+    doc.querySelectorAll('img[src*="/files/cars/"]').forEach(img => {
+      const src = img.getAttribute('src') || '';
+      if (src && src.match(/950_713/)) {
+        const full = src.startsWith('http') ? src : 'https://www.autoesa.cz' + src;
+        if (!imgs.includes(full)) imgs.push(full);
+      }
+    });
+  }
+
+  // ── PARAMETRE zo zoznamu "Základní údaje" ────────────────────────────────
+  const params = {};
+
+  // Rok – hľadaj "Rok\n2024" alebo "Rok výroby\n2024"
+  const yearM = allText.match(/\bRok\b[\s\n]*(20\d{2}|199\d)/i);
+  params.year = yearM ? yearM[1] : (allText.match(/\b(20\d{2})\b/) || [])[1] || '';
+
+  // Najeto – "Stav tachometru\n82842 km" alebo "82 842 km"
+  const kmM = allText.match(/(?:Stav tachometru|najeto|najeté)\s*([\d\s]+)\s*km/i);
+  if (kmM) {
+    const km = parseInt(kmM[1].replace(/\s/g,''));
+    params.mileage = km.toLocaleString('cs-CZ');
+  }
+
+  // Palivo
+  const fuelM = allText.match(/\bPalivo\b[\s\n]*(benzín|diesel|nafta|elektro|hybrid|lpg|cng|benzin)/i);
+  params.fuel = fuelM ? capitalize(fuelM[1]) : '';
+
+  // Převodovka – "automat/8" → "Automat"
+  const transM = allText.match(/\bPřevodovka\b[\s\n]*([^\n]+)/i);
+  if (transM) {
+    const t = transM[1].trim();
+    params.transmission = t.toLowerCase().includes('automat') ? 'Automat' :
+                          t.toLowerCase().includes('manu') ? 'Manuál' : t;
+  }
+
+  // Výkon
+  const powerM = allText.match(/\bVýkon\b[\s\n]*(\d+)\s*kW/i);
+  params.power = powerM ? powerM[1] + ' kW' : '';
+
+  // Barva
+  const colorM = allText.match(/\bBarva\b[\s\n]*([^\n]+)/i);
+  params.color = colorM ? colorM[1].trim() : '';
+
+  // Karoserie
+  const bodyM = allText.match(/\bKarosér?ie\b[\s\n]*([^\n]+)/i);
+  params.body = bodyM ? bodyM[1].trim() : '';
+
+  // Motor
+  const motorM = allText.match(/\bMotor\b[\s\n]*([^\n]+)/i);
+  params.motor = motorM ? motorM[1].trim() : '';
+
+  // Status
+  params.status = allText.match(/certifikováno/i) ? 'Certifikováno'
+                : allText.match(/prověřeno/i)     ? 'Prověřeno' : 'Auto ESA';
+
+  // VIN
+  const vinM = allText.match(/VIN[:\s]*([A-HJ-NPR-Z0-9]{17})/i);
+  params.vin = vinM ? vinM[1] : '';
+
+  return {
+    name:         name || 'Vozidlo',
+    model:        params.motor ? name + ' ' + params.motor : name,
+    year:         params.year,
+    mileage:      params.mileage || '',
+    fuel:         params.fuel,
+    transmission: params.transmission || '',
+    power:        params.power,
+    color:        params.color,
+    body:         params.body,
+    vin:          params.vin,
+    price:        price,
+    status:       params.status,
+    location:     '',
+    images:       imgs,
+  };
+}
+
+function extractFromUrl(url) {
+  try {
+    const path = new URL(url).pathname;
+    const parts = path.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      return parts.slice(0, -1).map(p => p.replace(/-/g,' ')).join(' ')
+        .split(' ').map(capitalize).join(' ');
+    }
+  } catch(e) {}
+  return 'Vozidlo';
+}
+
+function capitalize(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderCar() {
+  if (!car) return;
+
+  // Name
+  const parts = (car.name || '').split(' ');
+  const nameEl = document.getElementById('carName');
+  if (parts.length >= 2) {
+    nameEl.innerHTML = `${parts[0]} <span>${parts.slice(1).join(' ')}</span>`;
+  } else {
+    nameEl.textContent = car.name || '–';
+  }
+  document.getElementById('carSubtitle').textContent = [car.model, car.year, car.location].filter(Boolean).join(' · ');
+  document.getElementById('carBadge').textContent = car.status || 'Alikon';
+
+  // Meta chips
+  const meta = document.getElementById('carMeta');
+  const chips = [
+    car.mileage && { l:'Nájezd', v: car.mileage + ' km' },
+    car.fuel && { l:'Palivo', v: car.fuel },
+    car.transmission && { l:'Převodovka', v: car.transmission },
+    car.power && { l:'Výkon', v: car.power },
+    car.color && { l:'Barva', v: car.color },
+    car.body && { l:'Karoserie', v: car.body },
+  ].filter(Boolean);
+  meta.innerHTML = chips.map(c => `<div class="chip">${c.l}: <strong>${c.v}</strong></div>`).join('');
+
+  // Details grid
+  const grid = document.getElementById('detailsGrid');
+  const details = [
+    { l:'Rok výroby', v: car.year || '–' },
+    { l:'Nájezd', v: car.mileage ? car.mileage + ' km' : '–' },
+    { l:'Palivo', v: car.fuel || '–' },
+    { l:'Výkon', v: car.power || '–' },
+    { l:'Převodovka', v: car.transmission || '–' },
+    { l:'Barva', v: car.color || '–' },
+    { l:'VIN', v: car.vin || '–' },
+    { l:'Pobočka', v: car.location || '–' },
+  ];
+  grid.innerHTML = details.map(d => `
+    <div class="detail-cell">
+      <div class="detail-label">${d.l}</div>
+      <div class="detail-value">${d.v}</div>
+    </div>
+  `).join('');
+
+  // Price
+  document.getElementById('priceBase').textContent = czk(car.price);
+
+  // Images
+  renderImages();
+
+  // Packages
+  renderPackages();
+
+  // Total
+  updateTotal();
+
+  // Show card
+  document.getElementById('carCard').classList.add('show');
+  document.getElementById('carCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function renderImages() {
+  const wrap = document.getElementById('imgWrap');
+  const inner = document.getElementById('imgInner');
+  const prev = document.getElementById('imgPrev');
+  const next = document.getElementById('imgNext');
+  const counter = document.getElementById('imgCounter');
+
+  if (!images.length) {
+    inner.innerHTML = `<div class="car-img-placeholder" style="color:#333;font-size:14px">Fotografie nedostupná</div>`;
+    return;
+  }
+
+  // Načítaj aktuálnu fotku, ak 404 → preskočíme
+  const img = document.createElement('img');
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0';
+  img.src = images[imgIdx];
+  img.alt = car.name || '';
+  img.onerror = () => {
+    // Táto fotka neexistuje — orezíme pole a skúsime ďalšiu
+    images.splice(imgIdx, 1);
+    if (imgIdx >= images.length) imgIdx = 0;
+    if (images.length > 0) renderImages();
+    else inner.innerHTML = `<div class="car-img-placeholder" style="color:#333;font-size:13px">Fotografie nedostupná</div>`;
+  };
+  inner.innerHTML = '';
+  inner.style.cssText = 'position:relative;width:100%;height:100%';
+  inner.appendChild(img);
+
+  if (images.length > 1) {
+    prev.style.display = 'flex';
+    next.style.display = 'flex';
+    counter.style.display = 'block';
+    counter.textContent = `${imgIdx+1} / ${images.length}`;
+  } else {
+    prev.style.display = 'none';
+    next.style.display = 'none';
+    counter.style.display = 'none';
+  }
+}
+
+function prevImg() {
+  imgIdx = (imgIdx - 1 + images.length) % images.length;
+  renderImages();
+}
+function nextImg() {
+  imgIdx = (imgIdx + 1) % images.length;
+  renderImages();
+}
+
+function renderPackages() {
+  const grid = document.getElementById('pkgGrid');
+  grid.innerHTML = PACKAGES.map((p, i) => `
+    <div class="pkg-card${selected===i?' on':''}${p.highlight?' pkg-highlight':''}" id="pkg${i}" onclick="togglePkg(${i})">
+      ${p.highlight ? `<div class="pkg-best-badge">Nejoblíbenější</div>` : ''}
+      <div class="pkg-check"><div class="pkg-check-inner"></div></div>
+      <div class="pkg-tag${p.highlight?' pkg-tag-hl':''}">${p.tag}</div>
+      <div class="pkg-name">${p.name}</div>
+      <ul class="pkg-items">${p.items.map(it=>`<li>${it}</li>`).join('')}</ul>
+      ${p.note ? `<div class="pkg-note">${p.note}</div>` : ''}
+      <div class="pkg-price">${czk(p.price)}</div>
+    </div>
+  `).join('');
+}
+
+function togglePkg(i) {
+  // Radio — klik na už vybraný = odznačí
+  selected = (selected === i) ? null : i;
+  document.querySelectorAll('.pkg-card').forEach((el, idx) => {
+    el.classList.toggle('on', idx === selected);
+  });
+  updateTotal();
+}
+
+function getSleva() {
+  const val = parseInt(document.getElementById('slevaInput')?.value || '0');
+  return isNaN(val) || val < 0 ? 0 : val;
+}
+
+function updateTotal() {
+  if (!car) return;
+  const sleva = getSleva();
+  const pkg = selected !== null ? PACKAGES[selected] : null;
+  const pkgPrice = pkg && pkg.price > 0 ? pkg.price : 0;
+  const total = (car.price || 0) + pkgPrice - sleva;
+
+  const bd = document.getElementById('breakdown');
+  let rows = `<div class="b-row"><span class="b-key">Základní cena</span><span class="b-val">${czk(car.price)}</span></div>`;
+  if (pkg) {
+    rows += `<div class="b-row"><span class="b-key">${pkg.tag} – ${pkg.name}</span><span class="b-val">${pkg.price > 0 ? '+ ' + czk(pkg.price) : 'TBD'}</span></div>`;
+  }
+  if (sleva > 0) {
+    rows += `<div class="b-row"><span class="b-key" style="color:#00BB44">Sleva</span><span class="b-val" style="color:#00BB44">− ${czk(sleva)}</span></div>`;
+  }
+  rows += `<div class="b-div"></div>
+    <div class="b-row"><span class="b-key" style="color:var(--text);font-weight:600">Celkem</span><span class="b-val" style="color:var(--accent);font-size:15px">${czk(total)}</span></div>`;
+  bd.innerHTML = rows;
+  document.getElementById('totalAmt').textContent = czk(total);
+}
+
+// ─── PRESENTATION ─────────────────────────────────────────────────────────────
+function openPres() {
+  if (!car) return;
+  const sleva = getSleva();
+  const parts = (car.name||'').split(' ');
+  const nameHtml = parts.length >= 2
+    ? `${parts[0]} <span style="color:var(--red)">${parts.slice(1).join(' ')}</span>`
+    : car.name;
+  const imgHtml = images.length
+    ? `<img class="pres-img" src="${images[imgIdx]}" alt="${car.name}" onerror="this.style.display='none'">`
+    : `<div class="pres-img-ph">🚗</div>`;
+  const chipsData = [
+    car.year        && { l:'Rok',         v: car.year },
+    car.mileage     && { l:'Nájezd',      v: car.mileage + ' km' },
+    car.fuel        && { l:'Palivo',       v: car.fuel },
+    car.transmission&& { l:'Převodovka',  v: car.transmission },
+    car.color       && { l:'Barva',        v: car.color },
+  ].filter(Boolean);
+
+  // 3 stĺpce — každý balíček
+  const colsHtml = PACKAGES.map((p, i) => {
+    const pkgPrice = p.price > 0 ? p.price : 0;
+    const total = (car.price || 0) + pkgPrice - sleva;
+    const isSelected = selected === i;
+    const isHL = p.highlight;
+    const borderColor = isHL ? '#C9A84C' : isSelected ? '#CC0000' : '#1e1e1e';
+    const bgColor = isHL ? 'rgba(201,168,76,0.06)' : isSelected ? 'rgba(204,0,0,0.08)' : '#0d0d0d';
+    const tagColor = isHL ? '#C9A84C' : '#CC0000';
+    const totalColor = isHL ? '#C9A84C' : 'var(--accent)';
+    const scale = isHL ? 'transform:translateY(-6px);box-shadow:0 12px 40px rgba(201,168,76,0.18)' : '';
+    return `
+      <div style="
+        flex:1;min-width:180px;
+        background:${bgColor};
+        border:${isHL?'2px':'1.5px'} solid ${borderColor};
+        border-radius:10px;padding:${isHL?'28px 18px 20px':'20px 18px'};
+        display:flex;flex-direction:column;gap:8px;
+        position:relative;${scale}
+      ">
+        ${isHL ? `<div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#C9A84C;color:#000;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:3px 16px;border-radius:20px;white-space:nowrap;text-transform:uppercase">Nejoblíbenější</div>` : ''}
+        ${isSelected ? `<div style="position:absolute;top:8px;right:10px;background:#CC0000;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:3px;text-transform:uppercase">Vybraný</div>` : ''}
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:${tagColor};text-transform:uppercase;font-weight:700">${p.tag}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;line-height:1.2">${p.name}</div>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:3px;flex:1">
+          ${p.items.map(it=>`<li style="font-size:11px;color:#666;padding-left:14px;position:relative;line-height:1.4"><span style="position:absolute;left:0;color:${tagColor};font-weight:700;font-size:10px">✓</span>${it}</li>`).join('')}
+        </ul>
+        ${p.note ? `<div style="font-size:11px;color:${tagColor};font-weight:600;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px;padding:6px 0;border-top:1px solid #1a1a1a">${p.note}</div>` : ''}
+        <div style="border-top:1px solid #1a1a1a;padding-top:10px;display:flex;flex-direction:column;gap:4px;margin-top:4px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#555">
+            <span>Cena vozu</span><span>${czk(car.price)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666">
+            <span>${p.tag}</span><span>+ ${czk(pkgPrice)}</span>
+          </div>
+          ${sleva > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:#00BB44">
+            <span>Sleva</span><span>− ${czk(sleva)}</span>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;border-top:1px solid #222;padding-top:8px">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:#555;text-transform:uppercase">Celkem</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:${isHL?'32px':'26px'};color:${totalColor}">${czk(total)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('presBody').innerHTML = `
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:#333;text-transform:uppercase">ALIKON · Nabídka pro zákazníka</div>
+    ${imgHtml}
+    <div class="pres-name">${nameHtml}</div>
+    <div class="pres-chips">${chipsData.map(c=>`<div class="pres-chip">${c.l}: <strong>${c.v}</strong></div>`).join('')}</div>
+    <div style="width:100%;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      ${colsHtml}
+    </div>
+    <div class="pres-info-grid">
+      ${[{l:'VIN',v:car.vin||'–'},{l:'Rok výroby',v:car.year||'–'},{l:'Nájezd',v:car.mileage?car.mileage+' km':'–'}].map(x=>`
+        <div class="pres-info-cell">
+          <div class="pres-info-lbl">${x.l}</div>
+          <div class="pres-info-val">${x.v}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="pres-footer">Alikon · Ceny jsou informativní · platba v hotovosti · bez pojištění</div>
+  `;
+  document.getElementById('pres').classList.add('open');
+}
+
+function closePres() { document.getElementById('pres').classList.remove('open'); }
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function showErr(msg) {
+  const e = document.getElementById('errMsg');
+  e.textContent = msg;
+  e.classList.add('show');
+}
+
+function setLoading(on) {
+  document.getElementById('loadBtn').disabled = on;
+  document.getElementById('btnSpinner').style.display = on ? 'block' : 'none';
+  document.getElementById('btnText').textContent = on ? 'Načítám...' : 'Načíst';
+}
+
+function showAIStatus(msg) {
+  document.getElementById('aiStatus').style.display = 'flex';
+  document.getElementById('aiStatusText').textContent = msg;
+}
+
+function hideAIStatus() {
+  document.getElementById('aiStatus').style.display = 'none';
+}
+
+function resetAll() {
+  car = null; images = []; imgIdx = 0; selected = null;
+  document.getElementById('urlInput').value = '';
+  document.getElementById('carCard').classList.remove('show');
+  document.getElementById('errMsg').classList.remove('show');
+  const si = document.getElementById('slevaInput');
+  if (si) si.value = '';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); });
+
+// Upozornenie ak sa otvára ako súbor namiesto cez server
+
+</script>
+
+<!--
+════════════════════════════════════════════════════════════
+  NASTAVENÍ API KLÍČE
+════════════════════════════════════════════════════════════
+
+  Tato aplikace používá Claude AI pro načítání dat z autoesa.cz.
+  Potřebujete Anthropic API klíč.
+
+  MOŽNOST A – Lokální proxy server (doporučeno):
+  1. Nainstalujte Node.js (nodejs.org)
+  2. Vytvořte soubor proxy.js:
+
+     const http = require('http');
+     const https = require('https');
+     const API_KEY = 'váš-api-klíč-zde';
+
+     http.createServer((req, res) => {
+       res.setHeader('Access-Control-Allow-Origin', '*');
+       res.setHeader('Access-Control-Allow-Headers', '*');
+       if (req.method === 'OPTIONS') { res.end(); return; }
+       let body = '';
+       req.on('data', d => body += d);
+       req.on('end', () => {
+         const r = https.request({
+           hostname: 'api.anthropic.com',
+           path: '/v1/messages',
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'x-api-key': API_KEY,
+             'anthropic-version': '2023-06-01',
+           }
+         }, resp => {
+           res.writeHead(resp.statusCode, {'Content-Type':'application/json'});
+           resp.pipe(res);
+         });
+         r.write(body);
+         r.end();
+       });
+     }).listen(3001, () => console.log('Proxy běží na http://localhost:3001'));
+
+  3. Spusťte: node proxy.js
+  4. V kódu výše změňte URL v fetch() z
+     'https://api.anthropic.com/v1/messages'
+     na
+     'http://localhost:3001'
+
+  MOŽNOST B – Netlify (pro použití na více PC):
+  Nasaďte na Netlify a použijte Netlify Functions jako proxy.
+  Kontaktujte technickou podporu pro pomoc.
+
+════════════════════════════════════════════════════════════
+-->
+
+</body>
+</html>
