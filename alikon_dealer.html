@@ -389,9 +389,8 @@ function parseAutoESA(html, sourceUrl) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const allText = doc.body ? doc.body.textContent : '';
 
-  // Detekcia skutocnej login stranky
-  if (html.includes('Zapomenuté heslo') ||
-     (html.includes('type="password"') && !html.includes('Cena v hotovosti'))) {
+  // Detekcia login stránky — vráť null aby sa zobrazila chyba
+  if (html.includes('Zapomenuté heslo') || (html.includes('type="password"') && !html.includes('Cena v hotovosti'))) {
     return null;
   }
 
@@ -859,209 +858,171 @@ function resetAll() {
 }
 
 document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); });
-
 // ─── PIN OCHRANA ──────────────────────────────────────────────────────────────
 (function() {
-  const PIN = '2687';
-  const PUK = 'anele';
-  const MASTER = 'malke';
-  const MAX_PIN_ATTEMPTS = 3;
-  const MAX_PUK_ATTEMPTS = 3;
-  const PIN_LOCKOUT_MS = 10 * 60 * 1000;   // 10 minut
-  const PUK_LOCKOUT_MS = 24 * 60 * 60 * 1000; // 1 den
-
-  // Nacitaj stav z localStorage
-  let state = JSON.parse(localStorage.getItem('_alik_state') || '{}');
-  // state: { pinAttempts, pinLockedUntil, pukAttempts, pukLockedUntil, pukBanned }
+  const PIN     = '2687';
+  const PUK     = 'anele';
+  const MASTER  = 'malke';
+  const PIN_MAX = 3;
+  const PUK_MAX = 3;
+  const PIN_LOCK = 10 * 60 * 1000;
+  const PUK_LOCK = 24 * 60 * 60 * 1000;
 
   let pukMode = false;
-  let logoClicks = 0;
-  let logoTimer = null;
-  let countdownInterval = null;
+  let logoClicks = 0, logoTimer = null;
+  let ticker = null;
 
-  function saveState() {
-    localStorage.setItem('_alik_state', JSON.stringify(state));
+  function load() { try { return JSON.parse(localStorage.getItem('_alik') || '{}'); } catch(e) { return {}; } }
+  function save(s) { localStorage.setItem('_alik', JSON.stringify(s)); }
+
+  document.body.style.visibility = 'hidden';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:18px;font-family:"Barlow Condensed",sans-serif';
+  document.body.appendChild(ov);
+  document.body.style.visibility = '';
+
+  function logo() {
+    return '<div id="_logo" style="font-weight:900;font-size:42px;letter-spacing:6px;color:#C9A84C;cursor:default;user-select:none">PROJEKT<span style="color:#fff"> ALIKON</span></div>';
   }
 
-  document.body.style.display = 'none';
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px';
-  document.body.appendChild(overlay);
-  document.body.style.display = '';
-
-  function render() {
-    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
-
+  function draw() {
+    if (ticker) { clearInterval(ticker); ticker = null; }
+    const s = load();
     const now = Date.now();
-    const pukBanned = state.pukLockedUntil && now < state.pukLockedUntil;
-    const pinLocked = state.pinLockedUntil && now < state.pinLockedUntil;
 
-    // PUK banned screen
-    if (pukBanned) {
-      const remSec = Math.ceil((state.pukLockedUntil - now) / 1000);
-      overlay.innerHTML = `
-        <div id="pinLogo" style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;letter-spacing:6px;color:#C9A84C;cursor:default;user-select:none">PROJEKT<span style="color:#fff"> ALIKON</span></div>
-        <div style="font-size:56px">🔒</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;letter-spacing:2px;color:#CC0000;text-align:center;line-height:1.4">Hezký pokus,<br>bohužel to nevyšlo.</div>
-        <div style="font-family:'Barlow',sans-serif;font-size:13px;color:#555;text-align:center;line-height:1.8">Přístup byl zablokován na 24 hodin.<br>Kontaktujte podporu.</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:#333;letter-spacing:1px;text-align:center">Zbývá: <span id="countSec">${remSec}</span> s</div>
+    // PUK banned
+    if (s.pukLock && now < s.pukLock) {
+      ov.innerHTML = logo() + `
+        <div style="font-size:52px">🔒</div>
+        <div style="font-size:22px;color:#CC0000;text-align:center;line-height:1.4">Hezký pokus,<br>bohužel to nevyšlo.</div>
+        <div style="font-size:13px;color:#555;text-align:center;line-height:1.9">Přístup byl zablokován na 24 hodin.<br>Kontaktujte podporu.</div>
+        <div style="font-size:14px;color:#333">Zbývá: <span id="_sec"></span> s</div>`;
+      bindLogo();
+      const tick = () => {
+        const r = Math.ceil((s.pukLock - Date.now()) / 1000);
+        const el = document.getElementById('_sec');
+        if (el) el.textContent = r > 0 ? r : 0;
+        if (Date.now() >= s.pukLock) {
+          clearInterval(ticker); ticker = null;
+          s.pukLock = 0; s.pukTry = 0; save(s);
+          pukMode = false; draw();
+        }
+      };
+      tick();
+      ticker = setInterval(tick, 1000);
 
-      `;
-      // Tajne: Shift+D = zobrazi okno pre zadanie master hesla
-      document._masterHandler = function(e) {
+      // Shift+D = master heslo
+      const mh = function(e) {
         if (e.shiftKey && e.key === 'D') {
           e.preventDefault();
-          const val = window.prompt('Zadejte hlavní heslo:');
-          if (val !== null && val === MASTER) {
-            document.removeEventListener('keydown', document._masterHandler);
-            state = {};
-            saveState();
+          const v = window.prompt('Zadejte hlavní heslo:');
+          if (v === MASTER) {
+            document.removeEventListener('keydown', mh);
+            if (ticker) { clearInterval(ticker); ticker = null; }
+            save({});
             pukMode = false;
-            if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
-            render();
+            draw();
           }
         }
       };
-      document.addEventListener('keydown', document._masterHandler);
-
-      countdownInterval = setInterval(() => {
-        const r = Math.ceil((state.pukLockedUntil - Date.now()) / 1000);
-        const el = document.getElementById('countSec');
-        if (el) el.textContent = r > 0 ? r : 0;
-        if (Date.now() >= state.pukLockedUntil) {
-          clearInterval(countdownInterval);
-          state.pukLockedUntil = 0;
-          state.pukAttempts = 0;
-          saveState();
-          pukMode = false;
-          render();
-        }
-      }, 1000);
+      document.addEventListener('keydown', mh);
       return;
     }
 
-    // Normal PIN / PUK screen
-    const locked = pinLocked && !pukMode;
-    const pinRem = locked ? Math.ceil((state.pinLockedUntil - now) / 1000) : 0;
-    const pinAttempts = state.pinAttempts || 0;
+    // PIN locked
+    if (!pukMode && s.pinLock && now < s.pinLock) {
+      ov.innerHTML = logo() + `
+        <div style="font-size:13px;color:#555;letter-spacing:1px">Zadejte PIN kód</div>
+        <input disabled style="width:260px;background:#1A1A1A;border:1px solid #333;border-radius:6px;color:#444;padding:14px;font-size:28px;letter-spacing:8px;text-align:center;outline:none" placeholder="••••">
+        <div style="font-size:13px;color:#555">Zablokováno — čekejte <span id="_sec"></span> s</div>`;
+      bindLogo();
+      const tick = () => {
+        const r = Math.ceil((s.pinLock - Date.now()) / 1000);
+        const el = document.getElementById('_sec');
+        if (el) el.textContent = r > 0 ? r : 0;
+        if (Date.now() >= s.pinLock) {
+          clearInterval(ticker); ticker = null;
+          s.pinLock = 0; s.pinTry = 0; save(s);
+          draw();
+        }
+      };
+      tick();
+      ticker = setInterval(tick, 1000);
+      return;
+    }
 
-    overlay.innerHTML = `
-      <div id="pinLogo" style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;letter-spacing:6px;color:#C9A84C;cursor:default;user-select:none">PROJEKT<span style="color:#fff"> ALIKON</span></div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;color:#555;text-transform:uppercase">
-        ${pukMode ? 'Zadejte PUK kód' : 'Zadejte PIN kód'}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:260px">
-        <input id="pinInput" type="password" maxlength="20" ${locked ? 'disabled' : ''}
-          style="width:100%;background:#1A1A1A;border:1.5px solid ${pukMode ? '#C9A84C' : '#333'};border-radius:6px;color:${locked?'#444':'#fff'};padding:14px;font-family:'Barlow Condensed',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none"
+    // Normal vstup
+    const isPuk = pukMode;
+    ov.innerHTML = logo() + `
+      <div style="font-size:12px;letter-spacing:3px;color:#555;text-transform:uppercase">${isPuk ? 'Zadejte PUK kód' : 'Zadejte PIN kód'}</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:260px">
+        <input id="_inp" type="password" maxlength="20"
+          style="width:100%;background:#1A1A1A;border:1.5px solid ${isPuk ? '#C9A84C' : '#333'};border-radius:6px;color:#fff;padding:14px;font-size:28px;letter-spacing:8px;text-align:center;outline:none"
           placeholder="••••">
-        <div id="pinErr" style="font-size:12px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;color:#CC0000;display:none"></div>
-        ${locked
-          ? `<div style="color:#666;font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1px">Zablokováno — čekejte <span id="countSec">${pinRem}</span> s</div>`
-          : `<button onclick="window._alikCheck()" style="width:100%;background:${pukMode?'#C9A84C':'#CC0000'};border:none;color:${pukMode?'#000':'#fff'};padding:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:2px;cursor:pointer;border-radius:6px;text-transform:uppercase">Vstoupit</button>`
-        }
-        ${!locked && !pukMode && pinAttempts > 0
-          ? `<div style="font-size:11px;color:#555;font-family:'Barlow Condensed',sans-serif">Zbývají pokusy: ${MAX_PIN_ATTEMPTS - pinAttempts}</div>`
-          : ''}
-      </div>
-    `;
-
-    document.getElementById('pinLogo').addEventListener('click', handleLogoClick);
-
-    if (!locked) {
-      setTimeout(() => {
-        const inp = document.getElementById('pinInput');
-        if (inp) {
-          inp.focus();
-          inp.onkeydown = e => {
-            if (e.key === 'Enter') window._alikCheck();
-            const er = document.getElementById('pinErr');
-            if (er) er.style.display = 'none';
-          };
-        }
-      }, 50);
-    } else {
-      countdownInterval = setInterval(() => {
-        const rem = Math.ceil((state.pinLockedUntil - Date.now()) / 1000);
-        const el = document.getElementById('countSec');
-        if (el) el.textContent = rem > 0 ? rem : 0;
-        if (Date.now() >= state.pinLockedUntil) {
-          clearInterval(countdownInterval);
-          state.pinLockedUntil = 0;
-          state.pinAttempts = 0;
-          saveState();
-          render();
-        }
-      }, 1000);
-    }
+        <div id="_err" style="font-size:12px;color:#CC0000;display:none"></div>
+        <button onclick="window._chk()" style="width:100%;background:${isPuk ? '#C9A84C' : '#CC0000'};border:none;color:${isPuk ? '#000' : '#fff'};padding:12px;font-size:16px;font-weight:700;letter-spacing:2px;cursor:pointer;border-radius:6px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif">Vstoupit</button>
+        ${!isPuk && (s.pinTry||0) > 0 ? '<div style="font-size:11px;color:#444">Zbývají pokusy: '+(PIN_MAX-(s.pinTry||0))+'</div>' : ''}
+      </div>`;
+    bindLogo();
+    setTimeout(() => { const i = document.getElementById('_inp'); if(i){i.focus(); i.onkeydown = e => { if(e.key==='Enter') window._chk(); const er=document.getElementById('_err'); if(er) er.style.display='none'; }; } }, 50);
   }
 
-  function handleLogoClick() {
-    logoClicks++;
-    clearTimeout(logoTimer);
-    logoTimer = setTimeout(() => { logoClicks = 0; }, 600);
-    if (logoClicks >= 3) {
-      logoClicks = 0;
-      pukMode = true;
-      state.pinLockedUntil = 0;
-      render();
-    }
+  function bindLogo() {
+    const el = document.getElementById('_logo');
+    if (!el) return;
+    el.addEventListener('click', () => {
+      logoClicks++;
+      clearTimeout(logoTimer);
+      logoTimer = setTimeout(() => { logoClicks = 0; }, 600);
+      if (logoClicks >= 3) {
+        logoClicks = 0;
+        pukMode = true;
+        const s = load(); s.pinLock = 0; save(s);
+        draw();
+      }
+    });
   }
 
-  function checkMaster(val) {
-    if (!val) return;
-    if (val === MASTER) {
-      state = {};
-      saveState();
-      pukMode = false;
-      render();
-    }
-  }
-
-  window._alikCheck = function() {
-    const inp = document.getElementById('pinInput');
-    const val = inp ? inp.value : '';
+  window._chk = function() {
+    const s = load();
+    const inp = document.getElementById('_inp');
+    const val = inp ? inp.value.trim() : '';
+    const err = document.getElementById('_err');
 
     if (pukMode) {
       if (val === PUK) {
-        state.pukAttempts = 0;
-        saveState();
-        overlay.remove();
+        s.pukTry = 0; save(s);
+        ov.remove();
         return;
       }
-      state.pukAttempts = (state.pukAttempts || 0) + 1;
-      saveState();
-      const err = document.getElementById('pinErr');
-      if (err) { err.style.display = 'block'; err.textContent = 'Nesprávný PUK'; }
-      if (state.pukAttempts >= MAX_PUK_ATTEMPTS) {
-        state.pukLockedUntil = Date.now() + PUK_LOCKOUT_MS;
-        saveState();
-        setTimeout(render, 800);
+      s.pukTry = (s.pukTry || 0) + 1; save(s);
+      if (err) { err.style.display='block'; err.textContent='Nesprávný PUK — zbývají pokusy: '+(PUK_MAX-s.pukTry); }
+      if (s.pukTry >= PUK_MAX) {
+        s.pukLock = Date.now() + PUK_LOCK; save(s);
+        setTimeout(draw, 800);
       } else {
-        if (inp) { inp.value = ''; inp.focus(); }
+        if (inp) { inp.value=''; inp.focus(); }
       }
     } else {
       if (val === PIN) {
-        state.pinAttempts = 0;
-        saveState();
-        overlay.remove();
+        s.pinTry = 0; save(s);
+        ov.remove();
         return;
       }
-      state.pinAttempts = (state.pinAttempts || 0) + 1;
-      saveState();
-      const err = document.getElementById('pinErr');
-      if (err) { err.style.display = 'block'; err.textContent = 'Nesprávný PIN'; }
-      if (state.pinAttempts >= MAX_PIN_ATTEMPTS) {
-        state.pinLockedUntil = Date.now() + PIN_LOCKOUT_MS;
-        saveState();
-        setTimeout(render, 600);
+      s.pinTry = (s.pinTry || 0) + 1; save(s);
+      if (err) { err.style.display='block'; err.textContent='Nesprávný PIN'; }
+      if (s.pinTry >= PIN_MAX) {
+        s.pinLock = Date.now() + PIN_LOCK; save(s);
+        setTimeout(draw, 600);
       } else {
-        if (inp) { inp.value = ''; inp.focus(); }
+        if (inp) { inp.value=''; inp.focus(); }
       }
     }
   };
 
-  render();
+  draw();
 })();
+
 
 // Upozornenie ak sa otvára ako súbor namiesto cez server
 
