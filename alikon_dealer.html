@@ -864,7 +864,6 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); })
 (function() {
   const PIN = '2687';
   const KEY = 'alikon_pin_ok';
-  if (localStorage.getItem(KEY) === PIN) return; // uz overeny
 
   // Skry obsah
   document.body.style.display = 'none';
@@ -897,7 +896,6 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); })
   window.checkPin = function() {
     const val = document.getElementById('pinInput').value;
     if (val === PIN) {
-      localStorage.setItem(KEY, PIN);
       overlay.remove();
     } else {
       document.getElementById('pinErr').style.display = 'block';
