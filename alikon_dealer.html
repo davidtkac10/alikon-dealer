@@ -911,21 +911,27 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); })
       tick();
       ticker = setInterval(tick, 1000);
 
-      // Shift+D = master heslo
-      const mh = function(e) {
-        if (e.shiftKey && e.key === 'D') {
-          e.preventDefault();
-          const v = window.prompt('Zadejte hlavní heslo:');
-          if (v === MASTER) {
-            document.removeEventListener('keydown', mh);
-            if (ticker) { clearInterval(ticker); ticker = null; }
-            save({});
-            pukMode = false;
-            draw();
+      // 5x klik na zamok = master heslo
+      let _lockClicks = 0, _lockTimer = null;
+      const lockEl = ov.querySelector('div[style*="font-size:52px"]');
+      if (lockEl) {
+        lockEl.style.cursor = 'pointer';
+        lockEl.addEventListener('click', () => {
+          _lockClicks++;
+          clearTimeout(_lockTimer);
+          _lockTimer = setTimeout(() => { _lockClicks = 0; }, 1000);
+          if (_lockClicks >= 5) {
+            _lockClicks = 0;
+            const v = window.prompt('Zadejte hlavní heslo:');
+            if (v === MASTER) {
+              if (ticker) { clearInterval(ticker); ticker = null; }
+              save({});
+              pukMode = false;
+              draw();
+            }
           }
-        }
-      };
-      document.addEventListener('keydown', mh);
+        });
+      }
       return;
     }
 
