@@ -860,6 +860,53 @@ function resetAll() {
 
 document.addEventListener('keydown', e => { if(e.key==='Escape') closePres(); });
 
+// ─── PIN OCHRANA ──────────────────────────────────────────────────────────────
+(function() {
+  const PIN = '2687';
+  const KEY = 'alikon_pin_ok';
+  if (localStorage.getItem(KEY) === PIN) return; // uz overeny
+
+  // Skry obsah
+  document.body.style.display = 'none';
+
+  // PIN dialog
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px';
+  overlay.innerHTML = `
+    <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;letter-spacing:6px;color:#C9A84C">PROJEKT<span style="color:#fff"> ALIKON</span></div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;color:#555;text-transform:uppercase">Zadajte PIN kód</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:260px">
+      <input id="pinInput" type="password" maxlength="10"
+        style="width:100%;background:#1A1A1A;border:1px solid #333;border-radius:6px;color:#fff;padding:14px;font-family:'Barlow Condensed',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none"
+        placeholder="••••">
+      <div id="pinErr" style="color:#CC0000;font-size:12px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;display:none">Nesprávny PIN</div>
+      <button id="pinBtn"
+        style="width:100%;background:#CC0000;border:none;color:#fff;padding:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:2px;cursor:pointer;border-radius:6px;text-transform:uppercase"
+        onclick="checkPin()">Vstúpiť</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.display = '';
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+
+  document.getElementById('pinInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkPin();
+    document.getElementById('pinErr').style.display = 'none';
+  });
+
+  window.checkPin = function() {
+    const val = document.getElementById('pinInput').value;
+    if (val === PIN) {
+      localStorage.setItem(KEY, PIN);
+      overlay.remove();
+    } else {
+      document.getElementById('pinErr').style.display = 'block';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinInput').focus();
+    }
+  };
+})();
+
 // Upozornenie ak sa otvára ako súbor namiesto cez server
 
 </script>
